@@ -1,36 +1,41 @@
-import fs from 'fs';
+import fs from "fs";
 
-export const fileExistsValidator = (filePath: string, message = ''): boolean | string => {
+export const fileExistsValidator = (
+  filePath: string,
+  message = ""
+): boolean | string => {
   filePath = sanitizePath(String(filePath).trim());
   const exists = fs.existsSync(filePath);
-  return exists || message || 'Couldn’t locate the keystores file path. Please provide a valid path.';
+  return (
+    exists ||
+    message ||
+    "Could not locate the keystores file path. Please provide a valid path."
+  );
 };
 
-export const jsonFileValidator = (filePath: string, message = ''): boolean | string => {
+export const jsonFileValidator = (
+  filePath: string,
+  message = ""
+): boolean | string => {
   let fileContents;
   filePath = sanitizePath(filePath);
 
   try {
-    fileContents = fs.readFileSync(filePath, { encoding: 'utf-8' });
-  } catch (e) {
-    return message || 'Couldn’t read a validator keystore file';
+    fileContents = fs.readFileSync(filePath, { encoding: "utf-8" });
+  } catch {
+    return message || "Could not read a validator keystore file";
   }
   try {
     JSON.parse(fileContents);
-  } catch (e) {
+  } catch {
     return `Keystore file "${filePath}" must be .JSON format`;
   }
   return true;
 };
 
-/**
- * Make sure the path contains
- * @param path
- * @param regex
- */
 export const sanitizePath = (inputPath: string): string => {
   // Strip quotes from the beginning or end.
-  const strippedPath = inputPath.replace(/^["']|["']$/g, '');
+  const strippedPath = inputPath.replace(/^["']|["']$/g, "");
 
   // Remove any characters that are not typically allowed or are problematic in file paths.
   // Here, we're allowing alphanumeric characters, spaces, hyphens, underscores, and periods.

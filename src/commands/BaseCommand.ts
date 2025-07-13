@@ -1,20 +1,20 @@
-import prompts from 'prompts';
-import { ArgumentParser, SubParser } from 'argparse';
-import { BaseAction } from './actions/BaseAction';
+import prompts from "prompts";
+import { ArgumentParser, SubParser } from "argparse";
+import { BaseAction } from "./actions/BaseAction";
 
 const ordinalSuffixOf = (i: number): string => {
   const j = i % 10,
     k = i % 100;
   if (j == 1 && k != 11) {
-    return i + 'st';
+    return i + "st";
   }
   if (j == 2 && k != 12) {
-    return i + 'nd';
+    return i + "nd";
   }
   if (j == 3 && k != 13) {
-    return i + 'rd';
+    return i + "rd";
   }
-  return i + 'th';
+  return i + "th";
 };
 
 export class BaseCommand extends ArgumentParser {
@@ -24,13 +24,13 @@ export class BaseCommand extends ArgumentParser {
    */
   protected actions: any[] = [];
 
-  protected actionParsers: any = {}
+  protected actionParsers: any = {};
 
   protected subParserOptions = {
-    title: 'Actions',
-    description: 'Possible actions',
+    title: "Actions",
+    description: "Possible actions",
     help: 'To get more detailed help: "<action> --help". ',
-  }
+  };
 
   /**
    * Argparse sub parser to hold all the command actions options.
@@ -57,10 +57,14 @@ export class BaseCommand extends ArgumentParser {
     for (const action of this.actions) {
       const actionOptions = action.options;
       const actionParser: ArgumentParser = this.subParsers.add_parser(
-        actionOptions.action,
+        actionOptions.action
       );
       for (const argument of actionOptions.arguments) {
-        actionParser.add_argument(argument.arg1, argument.arg2, argument.options);
+        actionParser.add_argument(
+          argument.arg1,
+          argument.arg2,
+          argument.options
+        );
       }
       actionParser.set_defaults({
         func: (args: any) => {
@@ -82,11 +86,14 @@ export class BaseCommand extends ArgumentParser {
       return this.useAction;
     }
     const response = await prompts({
-      type: 'select',
-      name: 'action',
+      type: "select",
+      name: "action",
       message: `Select action`,
       choices: this.actions.map((action: BaseAction) => {
-        return { title: action.options.description, value: action.options.action };
+        return {
+          title: action.options.description || "",
+          value: action.options.action || "",
+        };
       }),
     });
     return response.action;
@@ -97,13 +104,16 @@ export class BaseCommand extends ArgumentParser {
    * @param selectedAction
    * @param clearProcessArgs
    */
-  prefillFromArguments(selectedAction: string, clearProcessArgs?: boolean): Record<string, any> {
+  prefillFromArguments(
+    selectedAction: string,
+    clearProcessArgs?: boolean
+  ): Record<string, any> {
     const actionArguments = this.getArgumentsForAction(selectedAction);
     const parser = new ArgumentParser();
     const [, args] = parser.parse_known_args();
     const parsedArgs: Record<string, any> = {};
     for (const arg of args) {
-      const argData = arg.split('=');
+      const argData = arg.split("=");
       // Find short arg1 and replace with long arg2
       for (const argument of actionArguments) {
         if (argData[0] === argument.arg1) {
@@ -114,7 +124,7 @@ export class BaseCommand extends ArgumentParser {
       const argumentName = this.sanitizeArgument(argData[0]);
       parsedArgs[argumentName] = String(argData[1]).trim();
     }
-    parsedArgs['action'] = selectedAction;
+    parsedArgs["action"] = selectedAction;
     prompts.override(parsedArgs);
     if (clearProcessArgs) {
       process.argv = [process.argv[0], process.argv[1]];
@@ -122,8 +132,12 @@ export class BaseCommand extends ArgumentParser {
     return parsedArgs;
   }
 
-  isPrefillFromArrayExists(dataIndex: number, promptOptions: any, preFilledValues: Record<string, any>): boolean {
-    return !!preFilledValues[promptOptions.name]?.split(',')[dataIndex];
+  isPrefillFromArrayExists(
+    dataIndex: number,
+    promptOptions: any,
+    preFilledValues: Record<string, any>
+  ): boolean {
+    return !!preFilledValues[promptOptions.name]?.split(",")[dataIndex];
   }
   /**
    * Pre-fill prompts from array data on specific index
@@ -132,22 +146,32 @@ export class BaseCommand extends ArgumentParser {
    * @param promptOptions
    * @param preFilledValues
    */
-  prefillFromArrayData(dataIndex: number, argument: any, promptOptions: any, preFilledValues: Record<string, any>) {
-    let preFilledValue = preFilledValues[promptOptions.name].split(',')[dataIndex];
-    if (argument.interactive.options.type === 'number') {
+  prefillFromArrayData(
+    dataIndex: number,
+    argument: any,
+    promptOptions: any,
+    preFilledValues: Record<string, any>
+  ) {
+    let preFilledValue =
+      preFilledValues[promptOptions.name].split(",")[dataIndex];
+    if (argument.interactive.options.type === "number") {
       preFilledValue = parseFloat(preFilledValue);
-      if (String(preFilledValue).endsWith('.0')) {
+      if (String(preFilledValue).endsWith(".0")) {
         preFilledValue = parseInt(String(preFilledValue), 10);
       }
     }
     const override = {
       ...preFilledValues,
-      [promptOptions.name]: preFilledValue
+      [promptOptions.name]: preFilledValue,
     };
     prompts.override(override);
   }
 
-  async ask(promptOptions: any, extraOptions: any, required?: boolean): Promise<any> {
+  async ask(
+    promptOptions: any,
+    extraOptions: any,
+    required?: boolean
+  ): Promise<any> {
     let response: Record<string, any> = {};
     response = await prompts(promptOptions, extraOptions);
     while (required && !response[promptOptions.name]) {
@@ -166,7 +190,9 @@ export class BaseCommand extends ArgumentParser {
   async executeInteractive(): Promise<any> {
     // Ask for action
     const selectedAction = await this.askAction();
-    selectedAction || process.exit(1);
+    if (!selectedAction) {
+      process.exit(1);
+    }
     const preFilledValues = this.prefillFromArguments(selectedAction, true);
     process.argv.push(selectedAction);
     const processedArguments: any = {};
@@ -185,51 +211,98 @@ export class BaseCommand extends ArgumentParser {
       let isRepeatable = !!argument.interactive?.repeat;
       if (!isRepeatable) {
         multi[promptOptions.name] = multi[promptOptions.name] || [];
-        multi[promptOptions.name].push(await this.ask(promptOptions, extraOptions));
+        multi[promptOptions.name].push(
+          await this.ask(promptOptions, extraOptions)
+        );
       }
-      let repeatCount =  0;
+      let repeatCount = 0;
       while (isRepeatable) {
         // Build pre-filled value for parent repeat
         if (preFilledValues[promptOptions.name]) {
-          this.prefillFromArrayData(repeatCount, argument, promptOptions, preFilledValues);
+          this.prefillFromArrayData(
+            repeatCount,
+            argument,
+            promptOptions,
+            preFilledValues
+          );
         }
-        promptOptions.message = `${message}`.replace('{{index}}', `${ordinalSuffixOf(repeatCount + 1)}`);
+        promptOptions.message = `${message}`.replace(
+          "{{index}}",
+          `${ordinalSuffixOf(repeatCount + 1)}`
+        );
         multi[promptOptions.name] = multi[promptOptions.name] || [];
-        multi[promptOptions.name].push(await this.ask(promptOptions, extraOptions));
+        multi[promptOptions.name].push(
+          await this.ask(promptOptions, extraOptions)
+        );
         // Processing "repeatWith".
         // For cases when some parameters are relative to each other and should be
         // asked from user in a relative way.
         let filledAsParent = false;
         for (const extraArgumentName of argument.interactive.repeatWith) {
-          const extraArgument = this.findArgumentByName(extraArgumentName, actionArguments);
+          const extraArgument = this.findArgumentByName(
+            extraArgumentName,
+            actionArguments
+          );
           if (!extraArgument) {
             continue;
           }
           // Build extra argument options
-          const extraArgumentPromptOptions = this.getPromptOptions(extraArgument);
+          const extraArgumentPromptOptions =
+            this.getPromptOptions(extraArgument);
           const extraArgumentMessage = extraArgumentPromptOptions.message;
-          const extraArgumentOptions = { onSubmit: extraArgumentPromptOptions.onSubmit };
+          const extraArgumentOptions = {
+            onSubmit: extraArgumentPromptOptions.onSubmit,
+          };
 
           // Build pre-filled value for child repeat
           if (preFilledValues[extraArgumentPromptOptions.name]) {
-            this.prefillFromArrayData(repeatCount, extraArgument, extraArgumentPromptOptions, preFilledValues);
+            this.prefillFromArrayData(
+              repeatCount,
+              extraArgument,
+              extraArgumentPromptOptions,
+              preFilledValues
+            );
           }
-          extraArgumentPromptOptions.message = `${extraArgumentMessage}`.replace('{{index}}', `${ordinalSuffixOf(repeatCount + 1)}`);
+          extraArgumentPromptOptions.message =
+            `${extraArgumentMessage}`.replace(
+              "{{index}}",
+              `${ordinalSuffixOf(repeatCount + 1)}`
+            );
 
           // Prompt extra argumen
-          multi[extraArgumentPromptOptions.name] = multi[extraArgumentPromptOptions.name] || [];
-          multi[extraArgumentPromptOptions.name].push(await this.ask(extraArgumentPromptOptions, extraArgumentOptions));
+          multi[extraArgumentPromptOptions.name] =
+            multi[extraArgumentPromptOptions.name] || [];
+          multi[extraArgumentPromptOptions.name].push(
+            await this.ask(extraArgumentPromptOptions, extraArgumentOptions)
+          );
           processedArguments[extraArgumentPromptOptions.name] = true;
 
-          if (preFilledValues[promptOptions.name] && preFilledValues[promptOptions.name].split(',').length === multi[extraArgumentPromptOptions.name].length) {
+          if (
+            preFilledValues[promptOptions.name] &&
+            preFilledValues[promptOptions.name].split(",").length ===
+              multi[extraArgumentPromptOptions.name].length
+          ) {
             filledAsParent = true;
           }
         }
 
         if (filledAsParent) {
           isRepeatable = false;
-        } else if (!this.isPrefillFromArrayExists(repeatCount + 1, promptOptions, preFilledValues)) {
-          isRepeatable = (await prompts({ type: 'confirm', name: 'value', message: argument.interactive?.repeat, initial: true })).value;
+        } else if (
+          !this.isPrefillFromArrayExists(
+            repeatCount + 1,
+            promptOptions,
+            preFilledValues
+          )
+        ) {
+          isRepeatable = (
+            await prompts({
+              type: "confirm",
+              name: "value",
+              message: argument.interactive?.repeat,
+              initial: true,
+            })
+          ).value;
         }
         repeatCount++;
       }
@@ -240,9 +313,13 @@ export class BaseCommand extends ArgumentParser {
       }
     }
     for (const argumentName of Object.keys(multi)) {
-      process.argv.push(`--${argumentName.replace(/(_)/gi, '-')}=${multi[argumentName].join(',')}`);
+      process.argv.push(
+        `--${argumentName.replace(/(_)/gi, "-")}=${multi[argumentName].join(
+          ","
+        )}`
+      );
     }
-}
+  }
 
   /**
    * Find argument in list of arguments by its arg2 value.
@@ -277,10 +354,7 @@ export class BaseCommand extends ArgumentParser {
    * @protected
    */
   protected sanitizeArgument(arg: string): string {
-    return arg
-      .replace(/^(--)/gi, '')
-      .replace(/(-)/gi, '_')
-      .trim();
+    return arg.replace(/^(--)/gi, "").replace(/(-)/gi, "_").trim();
   }
 
   /**
@@ -288,10 +362,11 @@ export class BaseCommand extends ArgumentParser {
    * @param argument
    */
   getPromptOptions(argument: any): any {
-    const message = argument.interactive?.options?.message || argument.options.help;
+    const message =
+      argument.interactive?.options?.message || argument.options.help;
     return {
-      ...argument.interactive?.options || {},
-      type: argument.interactive?.options?.type || 'text',
+      ...(argument.interactive?.options || {}),
+      type: argument.interactive?.options?.type || "text",
       name: this.sanitizeArgument(argument.arg2),
       message,
       onSubmit: argument.interactive.onSubmit || undefined,

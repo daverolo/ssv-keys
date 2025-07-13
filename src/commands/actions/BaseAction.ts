@@ -1,17 +1,5 @@
-import { ArgumentOptions, Namespace } from 'argparse';
-import { SSVKeysException } from '../../lib/exceptions/base';
-
-export interface ActionArgument {
-  arg1: string,
-  arg2: string,
-  options: ArgumentOptions
-}
-
-export interface ActionOptions {
-  action: string,
-  // shortAction: string,
-  arguments: ActionArgument[]
-}
+import { SSVKeysException } from "@ssv-labs/ssv-sdk";
+import { Namespace } from "argparse";
 
 export class BaseAction {
   protected args: Namespace = {};
@@ -22,7 +10,7 @@ export class BaseAction {
   }
 
   async execute(): Promise<any> {
-    throw new SSVKeysException('Should implement "execute"')
+    throw new SSVKeysException('Should implement "execute"');
   }
 
   static get options(): any {

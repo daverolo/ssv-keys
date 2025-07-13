@@ -1,27 +1,28 @@
-import { decode } from 'js-base64';
-import JSEncrypt from '../../../lib/JSEncrypt';
-import { OperatorPublicKeyError } from '../../../lib/exceptions/operator';
+import { util, pki } from "node-forge";
+import { OperatorPublicKeyError } from "@ssv-labs/ssv-sdk";
 
 export const operatorPublicKeyValidator = (publicKey: string): boolean => {
   publicKey = publicKey.trim();
 
-  const begin = '-----BEGIN RSA PUBLIC KEY-----';
-  const end = '-----END RSA PUBLIC KEY-----';
+  const begin = "-----BEGIN RSA PUBLIC KEY-----";
+  const end = "-----END RSA PUBLIC KEY-----";
 
-  const encrypt = new JSEncrypt({});
-  let decodedOperator = '';
+  let decodedPublicKey = "";
   try {
-    let decodedPublicKey = '';
-
     if (!publicKey.startsWith(begin)) {
       if (publicKey.length < 98) {
-        throw new Error('The length of the operator public key must be at least 98 characters.');
+        throw new Error(
+          "The length of the operator public key must be at least 98 characters."
+        );
       }
 
       try {
-        decodedPublicKey = decode(publicKey).trim();
+        decodedPublicKey = util.decode64(publicKey).trim();
       } catch (error) {
-        throw new Error("Failed to decode the operator public key. Ensure it's correctly base64 encoded.");
+        console.log("error:", error);
+        throw new Error(
+          "Failed to decode the operator public key. Ensure it's correctly base64 encoded."
+        );
       }
 
       if (!decodedPublicKey.startsWith(begin)) {
@@ -36,26 +37,20 @@ export const operatorPublicKeyValidator = (publicKey: string): boolean => {
     }
 
     try {
-      // Get the content without the header and footer
-      const content = decodedPublicKey.slice(begin.length, publicKey.length - end.length).trim();
-      decodedOperator = decode(content);
-    } catch (error) {
-      throw new Error("Failed to decode the RSA public key. Ensure it's correctly base64 encoded.");
-    }
-
-    try {
-      encrypt.setPublicKey(decodedOperator);
-    } catch (error: any) {
-      throw new Error("Invalid operator key format, make sure the operator exists in the network.");
+      pki.publicKeyFromPem(decodedPublicKey);
+    } catch {
+      throw new Error(
+        "Invalid operator key format, make sure the operator exists in the network."
+      );
     }
   } catch (error: any) {
     throw new OperatorPublicKeyError(
       {
-        rsa: decodedOperator,
+        rsa: decodedPublicKey,
         base64: publicKey,
       },
-      error.message,
+      error.message
     );
   }
   return true;
-}
+};

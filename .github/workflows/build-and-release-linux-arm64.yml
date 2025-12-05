@@ -1,0 +1,57 @@
+name: Release for Linux ARM64
+
+on:
+    workflow_dispatch:
+
+env:
+    ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+    UPSTREAM_OWNER: ssvlabs
+    UPSTREAM_REPO: ssv-keys
+
+permissions:
+    contents: write
+
+jobs:
+    release_linux_arm64:
+        runs-on: ubuntu-24.04-arm
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0 # important so tags are available locally
+            - name: Fetch upstream latest release tag
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  latest_tag=$(
+                    curl -s \
+                      -H "Authorization: Bearer $GH_TOKEN" \
+                      -H "Accept: application/vnd.github+json" \
+                      "https://api.github.com/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/releases/latest" \
+                    | jq -r .tag_name
+                  )
+                  echo "Latest upstream tag: $latest_tag"
+                  echo "UPSTREAM_TAG=$latest_tag" >> $GITHUB_ENV
+            - name: Add upstream remote + fetch tag
+              run: |
+                  git remote add upstream https://github.com/${UPSTREAM_OWNER}/${UPSTREAM_REPO}.git
+                  git fetch upstream --tags
+                  git checkout "$UPSTREAM_TAG"
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "22.x"
+            - run: corepack enable
+            - run: corepack prepare pnpm@latest --activate
+            - run: pnpm install
+            - run: pnpm build-all
+            - run: pnpm exec pkg dist/cli-interactive.js --targets node22-linux-arm64 --output bin/linux-arm64/ssv-keys-lin-arm64 --compress GZip
+            - uses: ncipollo/release-action@v1
+              with:
+                  tag: ${{ env.UPSTREAM_TAG }}
+                  name: ${{ env.UPSTREAM_TAG }} (Linux ARM64)
+                  body: Latest build for Linux ARM64
+                  allowUpdates: true
+                  replacesArtifacts: true
+                  makeLatest: true
+                  draft: false
+                  artifacts: "bin/linux-arm64/*"
+                  token: ${{ secrets.GITHUB_TOKEN }}
